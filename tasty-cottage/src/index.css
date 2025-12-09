@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@plugin "daisyui" {
+    themes: light;
+}
+
+
+
+html {
+    scroll-padding-top: 80px;
+}
