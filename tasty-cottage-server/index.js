@@ -11,16 +11,14 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// --- 1. Middleware ---
+
 app.use(cors({
   origin: [process.env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:5174'],
   credentials: true
 }));
 app.use(express.json());
 
-// --- 2. Corrected MongoDB Connection URI ---
-// IMPORTANT: Replace 'tastyCottageDB' with your actual database name.
-// The &tlsAllowCrls=true flag is added for the SSL fix.
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gjeqnpv.mongodb.net/tastyCottageDB?appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -45,7 +43,7 @@ async function run() {
     const bookingCollection = db.collection("bookings");
 
 
-    // JWT related Api
+
 
     app.post('/jwt', async (req, res) => {
       const user = req.body;
@@ -56,7 +54,7 @@ async function run() {
     })
 
 
-    // middlewares
+
     const verifyToken = (req, res, next) => {
       if (!req.headers.authorization) {
         return res.status(401).send({ message: 'unauthorized access' });
@@ -72,7 +70,7 @@ async function run() {
       });
     };
 
-    //use verify admin after verifyToken
+
 
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
@@ -86,7 +84,7 @@ async function run() {
     }
 
 
-    //user related ApI
+
 
     app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
@@ -113,8 +111,7 @@ async function run() {
 
     app.post('/users', async (req, res) => {
       const user = req.body;
-      //insert email if user doesn't exist 
-      // You can do this many ways
+
 
       const query = { email: user.email }
       const existingUser = await userCollection.findOne(query);
@@ -128,7 +125,7 @@ async function run() {
       res.send(result);
     })
 
-    // menu releated api 
+
 
 
 
@@ -199,7 +196,7 @@ async function run() {
 
     app.delete('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
-      // CRITICAL: Ensure 'id' is a valid string before creating ObjectId
+
       if (!id || id.length !== 24) {
         return res.status(400).send({ message: "Invalid item ID provided" });
       }
@@ -232,14 +229,14 @@ async function run() {
 
 
 
-    //carts Collection
+
 
 
     app.get('/carts', verifyToken, async (req, res) => {
       try {
         const email = req.query.email;
 
-        // Verify the requested email matches the authenticated user
+
         if (email !== req.decoded.email) {
           return res.status(403).send({ message: 'forbidden access' });
         }
@@ -257,7 +254,7 @@ async function run() {
       try {
         const cartItem = req.body;
 
-        // Verify the cart item email matches the authenticated user
+
         if (cartItem.email !== req.decoded.email) {
           return res.status(403).send({ message: 'forbidden access' });
         }
@@ -292,7 +289,7 @@ async function run() {
       }
     })
 
-    // Booking API
+
     app.get('/bookings', verifyToken, async (req, res) => {
       const email = req.query.email;
       let query = {};
@@ -328,28 +325,24 @@ async function run() {
       res.send(result);
     });
 
-    // ============================================
-    // PAYMENT GATEWAY INTEGRATIONS
-    // ============================================
+
 
     const axios = require('axios');
     const paymentCollection = db.collection("payments");
 
-    // ============================================
-    // bKash Payment Gateway Functions
-    // ============================================
+
 
     let bkashToken = null;
     let bkashTokenExpiry = null;
 
     const getBkashToken = async () => {
       try {
-        // Check if we have a valid token
+
         if (bkashToken && bkashTokenExpiry && Date.now() < bkashTokenExpiry) {
           return bkashToken;
         }
 
-        // Get new token
+
         const response = await axios.post(
           `${process.env.BKASH_BASE_URL}/checkout/token/grant`,
           {
@@ -366,7 +359,7 @@ async function run() {
         );
 
         bkashToken = response.data.id_token;
-        // Token expires in 1 hour, we'll refresh after 55 minutes
+
         bkashTokenExpiry = Date.now() + (55 * 60 * 1000);
 
         return bkashToken;
@@ -453,9 +446,7 @@ async function run() {
       }
     };
 
-    // ============================================
-    // Nagad Payment Gateway Functions
-    // ============================================
+
 
     const crypto = require('crypto');
 
@@ -505,10 +496,9 @@ async function run() {
       }
     };
 
+
     const verifyNagadPayment = async (paymentRef) => {
       try {
-        // Nagad payment verification logic
-        // This would typically involve checking the payment status with Nagad API
         return { status: 'Success', paymentRef };
       } catch (error) {
         console.error('Nagad payment verification error:', error.message);
@@ -516,14 +506,10 @@ async function run() {
       }
     };
 
-    // ============================================
-    // Rocket Payment Gateway Functions
-    // ============================================
+
 
     const createRocketPayment = async (amount, orderId) => {
       try {
-        // Rocket typically uses a simpler merchant-based system
-        // This is a simplified implementation
         return {
           success: true,
           merchantId: process.env.ROCKET_MERCHANT_ID,
@@ -537,11 +523,9 @@ async function run() {
       }
     };
 
-    // ============================================
-    // Payment API Endpoints
-    // ============================================
 
-    // Stripe Payment Intent API (existing)
+
+
     const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
     app.post('/create-payment-intent', async (req, res) => {
@@ -553,10 +537,10 @@ async function run() {
           return res.status(400).send({ message: 'Invalid amount' });
         }
 
-        // Generate unique order ID
+
         const orderId = `ORDER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-        // Create payment intent based on method
+
         switch (paymentMethod) {
           case 'stripe':
             const stripeAmount = parseInt(amount * 100);
@@ -620,7 +604,7 @@ async function run() {
       }
     });
 
-    // Execute bKash Payment
+
     app.post('/execute-bkash-payment', async (req, res) => {
       try {
         const { paymentID } = req.body;
@@ -640,13 +624,12 @@ async function run() {
       }
     });
 
-    // SSLCommerz Callbacks
+
     app.post('/ssl-payment-success/:tranId', async (req, res) => {
       const tranId = req.params.tranId;
       console.log("SSL Payment Success:", tranId);
 
-      // Update payment status in database
-      // In a real app, you would validate the payment with SSLCommerz API first
+
       const payment = {
         transactionId: tranId,
         status: 'success',
@@ -656,7 +639,7 @@ async function run() {
 
       const result = await paymentCollection.insertOne(payment);
 
-      // Redirect to frontend success page
+
       res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard/paymentHistory`);
     });
 
@@ -672,7 +655,7 @@ async function run() {
       res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/dashboard/payment?error=payment_cancelled`);
     });
 
-    // Query/Verify Mobile Banking Payment
+
     app.post('/verify-mobile-payment', async (req, res) => {
       try {
         const { paymentMethod, paymentID, paymentRef } = req.body;
@@ -717,7 +700,7 @@ async function run() {
       const payment = req.body;
       const paymentResult = await paymentCollection.insertOne(payment);
 
-      //  carefully delete each item from the cart
+
       console.log('payment info', payment);
       const query = {
         _id: {
@@ -730,15 +713,13 @@ async function run() {
       res.send({ paymentResult, deleteResult });
     })
 
-    // stats or analytics
+
     app.get('/admin-stats', verifyToken, verifyAdmin, async (req, res) => {
       const users = await userCollection.estimatedDocumentCount();
       const menuItems = await menuCollection.estimatedDocumentCount();
       const orders = await paymentCollection.estimatedDocumentCount();
 
-      // this is not the best way
-      // const payments = await paymentCollection.find().toArray();
-      // const revenue = payments.reduce((total, payment) => total + payment.price, 0);
+
 
       const result = await paymentCollection.aggregate([
         {
@@ -761,15 +742,9 @@ async function run() {
       })
     })
 
-    // order status
-    /**
-     * NON-Efficient Way
-     * 1. load all the payments
-     * 2. for every menuItemIds (which is an array), go find the item from menu collection
-     * 3. for every item in the menu collection, calculate the revenue
-     */
 
-    // using aggregate pipeline
+
+
     app.get('/order-stats', verifyToken, verifyAdmin, async (req, res) => {
       const result = await paymentCollection.aggregate([
         {
@@ -778,7 +753,7 @@ async function run() {
         {
           $lookup: {
             from: 'menu',
-            let: { menuItemId: { $toObjectId: '$menuItemIds' } }, // Convert string ID to ObjectId
+            let: { menuItemId: { $toObjectId: '$menuItemIds' } },
             pipeline: [
               {
                 $match: {
@@ -815,7 +790,7 @@ async function run() {
       res.send(result);
     })
 
-    // User Stats
+
     app.get('/user-stats', verifyToken, async (req, res) => {
       const email = req.query.email;
       if (!email) {
@@ -828,7 +803,7 @@ async function run() {
       const reviewsCount = await reviewCollection.countDocuments(query);
       const cartCount = await cartCollection.countDocuments(query);
 
-      // Calculate total spent by user
+
       const payments = await paymentCollection.find(query).toArray();
       const totalSpent = payments.reduce((total, item) => total + item.price, 0);
 
@@ -839,12 +814,11 @@ async function run() {
         orders: paymentCount
       });
     });
-    // Menu cache for chatbot (5-minute cache)
     let menuCache = null;
     let menuCacheTime = null;
-    const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    const CACHE_DURATION = 5 * 60 * 1000;
 
-    // Chatbot API
+
     app.post('/chat', async (req, res) => {
       const { message } = req.body;
 
@@ -853,13 +827,12 @@ async function run() {
       }
 
       try {
-        // 1. Fetch menu data with caching
         if (!menuCache || Date.now() - menuCacheTime > CACHE_DURATION) {
           menuCache = await menuCollection.find().toArray();
           menuCacheTime = Date.now();
         }
 
-        // 2. Format menu data for the AI
+
         const menuContext = menuCache.map(item =>
           `${item.name}: $${item.price} (${item.category}) - ${item.recipe}`
         ).join('\n');
@@ -871,7 +844,7 @@ async function run() {
         Menu:
         ${menuContext}`;
 
-        // 3. Call Google Gemini
+
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
@@ -897,12 +870,12 @@ async function run() {
       } catch (error) {
         console.error("Chatbot error:", error.message);
 
-        // --- Fallback Logic: Local Keyword Search ---
+
         try {
           const lowerMessage = message.toLowerCase();
           const menuItems = menuCache || await menuCollection.find().toArray();
 
-          // Find items that match words in the user's message
+
           const matchedItems = menuItems.filter(item =>
             lowerMessage.includes(item.name.toLowerCase()) ||
             lowerMessage.includes(item.category.toLowerCase())
@@ -929,7 +902,7 @@ async function run() {
     await client.db("admin").command({ ping: 1 });
     console.log("✅ Successfully connected to MongoDB!");
 
-    // The connection stays open now.
+
 
   } catch (error) {
     console.error("❌ Failed to connect to MongoDB:", error);
@@ -937,7 +910,7 @@ async function run() {
   }
 }
 
-// Graceful shutdown handlers
+
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down gracefully...');
   try {
@@ -962,24 +935,24 @@ process.on('SIGTERM', async () => {
   }
 });
 
-// ⭐️ Start Express ONLY after successful MongoDB connection
+
 run()
   .then(() => {
-    // --- 3. Express Routes ---
+
     app.get('/', (req, res) => {
       res.send('cottage is running');
     });
 
-    // --- SSLCommerz Helper Functions ---
+
     const store_id = process.env.STORE_ID;
     const store_passwd = process.env.STORE_PASSWORD;
-    const is_live = false; // true for live, false for sandbox
+    const is_live = false;
 
     const initializeSSLCommerzPayment = async (amount, orderId, customerInfo) => {
       const data = {
         total_amount: amount,
         currency: 'BDT',
-        tran_id: orderId, // Use unique tran_id for each api call
+        tran_id: orderId,
         success_url: `${process.env.VITE_API_URL || 'http://localhost:5000'}/ssl-payment-success/${orderId}`,
         fail_url: `${process.env.VITE_API_URL || 'http://localhost:5000'}/ssl-payment-fail/${orderId}`,
         cancel_url: `${process.env.VITE_API_URL || 'http://localhost:5000'}/ssl-payment-cancel/${orderId}`,
@@ -1017,7 +990,7 @@ run()
       }
     };
 
-    // --- 4. Start Server Listener ---
+
     app.listen(port, () => {
       console.log(`🚀 cottage is running on port ${port}`);
     });
