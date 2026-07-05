@@ -5,11 +5,23 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const SSLCommerzPayment = require('sslcommerz-lts');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// stripe is loaded lazily inside getStripeClient()
 const axios = require('axios');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const app = express();
 const port = process.env.PORT || 3000;
+
+let stripeClient = null;
+const getStripeClient = () => {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('Missing STRIPE_SECRET_KEY. Set this environment variable before using Stripe.');
+  }
+  if (!stripeClient) {
+    const stripeModule = require('stripe');
+    stripeClient = stripeModule(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripeClient;
+};
 
 
 app.use(cors({
@@ -19,7 +31,16 @@ app.use(cors({
 app.use(express.json());
 
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gjeqnpv.mongodb.net/tastyCottageDB?appName=Cluster0`;
+const uri = process.env.MONGODB_URI || (
+  process.env.DB_USER && process.env.DB_PASS
+    ? `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.gjeqnpv.mongodb.net/tastyCottageDB?appName=Cluster0`
+    : null
+);
+
+if (!uri) {
+  console.error('Missing MongoDB configuration: set MONGODB_URI or DB_USER and DB_PASS in .env');
+  process.exit(1);
+}
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -526,7 +547,7 @@ async function run() {
 
 
 
-    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    // Stripe client is initialized lazily when the Stripe payment method is used.
 
     app.post('/create-payment-intent', async (req, res) => {
       try {
@@ -544,7 +565,7 @@ async function run() {
         switch (paymentMethod) {
           case 'stripe':
             const stripeAmount = parseInt(amount * 100);
-            const paymentIntent = await stripe.paymentIntents.create({
+            const paymentIntent = await getStripeClient().paymentIntents.create({
               amount: stripeAmount,
               currency: 'usd',
               payment_method_types: ['card']
